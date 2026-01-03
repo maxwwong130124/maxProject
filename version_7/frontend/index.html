@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HERMES</title>
+    <link rel="icon" type="image/png" href="/static/icon.png">
+    
+    <!-- External Libraries -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    
+    <!-- Custom CSS (Loaded from static mount) -->
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="manifest" href="/static/manifest.json">
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- 
+       We use data-type="module" to tell Babel this is a module.
+       We use src="/static/..." because we mounted the folder in FastAPI.
+    -->
+    <script type="text/babel" data-type="module" src="/static/js/index.js">
+    </script>
+</body>
+</html>

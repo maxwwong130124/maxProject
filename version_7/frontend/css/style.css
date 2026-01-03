@@ -1,0 +1,179 @@
+/* frontend/css/style.css */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+:root {
+    /* --- DEFAULT (LIGHT MODE) --- */
+    --bg-color: #ffffff;
+    --main-text: #000000;
+    --pixel-border: #000000;
+    --pixel-gray: #eeeeee;
+    --shadow-color: #888888;
+    --input-bg: #ffffff;
+    --btn-bg: #ffffff;
+    --btn-hover: #000000;
+    --btn-text-hover: #ffffff;
+    
+    /* Special Status Colors */
+    --danger-red: #ff0000;
+    --secure-green: #00aa00;
+}
+
+/* --- DARK MODE OVERRIDES --- */
+body.dark-mode {
+    --bg-color: #000000;
+    --main-text: #ffffff;
+    --pixel-border: #ffffff;
+    --pixel-gray: #333333;
+    --shadow-color: #444444;
+    --input-bg: #000000;
+    --btn-bg: #000000;
+    --btn-hover: #ffffff;
+    --btn-text-hover: #000000;
+}
+
+/* --- CORE LAYOUT --- */
+body { 
+    background-color: var(--bg-color);
+    color: var(--main-text);
+    font-family: 'VT323', monospace; 
+    font-size: 20px; 
+    margin: 0;
+    overflow: hidden;
+    /* Dot Pattern adapts to theme */
+    background-image: radial-gradient(var(--shadow-color) 1px, transparent 1px);
+    background-size: 20px 20px;
+    transition: background-color 0.3s, color 0.3s;
+
+    /* FIX: Use 100dvh (Dynamic Viewport Height) for mobile browsers */
+    height: 100vh;
+    height: 100dvh; 
+    
+    /* FIX: smooth scrolling for touch devices */
+    -webkit-overflow-scrolling: touch; 
+}
+
+/* --- TYPOGRAPHY --- */
+h1, h2, h3, .pixel-font {
+    font-family: 'Press Start 2P', cursive;
+    text-transform: uppercase;
+    line-height: 1.5;
+    color: var(--main-text);
+}
+
+/* --- PIXEL BORDERS & BOXES --- */
+.pixel-box {
+    background: var(--bg-color);
+    border: 4px solid var(--pixel-border);
+    box-shadow: 8px 8px 0px var(--shadow-color);
+    position: relative;
+    transition: all 0.3s;
+}
+
+/* --- INPUT FIELDS --- */
+.input-pixel {
+    background: var(--input-bg);
+    color: var(--main-text);
+    border: 3px solid var(--pixel-border);
+    font-family: 'VT323', monospace;
+    font-size: 1.3rem;
+    padding: 10px;
+    outline: none;
+    font-weight: bold;
+}
+.input-pixel:focus {
+    background: var(--pixel-gray);
+    box-shadow: inset 4px 4px 0px var(--shadow-color);
+}
+.input-pixel::placeholder {
+    color: var(--shadow-color);
+}
+
+/* --- BUTTONS --- */
+.btn-pixel {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 10px;
+    background: var(--btn-bg);
+    color: var(--main-text);
+    border: 3px solid var(--pixel-border);
+    padding: 15px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.1s;
+    box-shadow: 4px 4px 0px var(--shadow-color);
+}
+
+.btn-pixel:hover {
+    background: var(--btn-hover);
+    color: var(--btn-text-hover);
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px var(--pixel-border);
+}
+
+.btn-pixel:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px var(--pixel-border);
+}
+
+/* --- SCROLLBAR --- */
+::-webkit-scrollbar { width: 12px; }
+::-webkit-scrollbar-track { background: var(--bg-color); border-left: 2px solid var(--pixel-border); }
+::-webkit-scrollbar-thumb { 
+    background: var(--pixel-border); 
+    border: 2px solid var(--bg-color);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--shadow-color); }
+
+/* --- UTILITIES --- */
+.text-blink { animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Force colors for specific logic states */
+.text-danger { color: var(--danger-red) !important; }
+.text-secure { color: var(--secure-green) !important; }
+.border-danger { border-color: var(--danger-red) !important; }
+
+* { transition: none !important; } 
+/* Allow background transition for theme switch only */
+body { transition: background-color 0.2s ease, color 0.2s ease !important; }
+
+.app-container {
+    height: 100vh; /* Fallback */
+    height: 100dvh; /* Mobile Fix */
+    display: flex;
+    overflow: hidden;
+}
+
+body.dark-mode {
+    background-color: #000000;
+    color: #ffffff;
+    background-image: radial-gradient(#333 1px, transparent 1px);
+}
+
+body.dark-mode .pixel-box {
+    background-color: #000000;
+    border-color: #ffffff;
+    box-shadow: 8px 8px 0px #333;
+    color: #ffffff;
+}
+
+body.dark-mode .input-pixel {
+    background-color: #000000;
+    color: #ffffff;
+    border-color: #ffffff;
+}
+
+body.dark-mode .btn-pixel {
+    background-color: #000000;
+    color: #ffffff;
+    border-color: #ffffff;
+    box-shadow: 4px 4px 0px #333;
+}
+
+body.dark-mode .btn-pixel:hover {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+body.dark-mode h1, body.dark-mode label {
+    color: #ffffff;
+}
