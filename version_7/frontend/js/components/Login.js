@@ -58,7 +58,7 @@ export default function Login({ onLogin }) {
             <div className="pixel-box p-8 w-96 flex flex-col items-center">
                 
                 <h1 className="text-3xl mb-6 text-center" style=${{ fontFamily: '"Press Start 2P"' }}>
-                    LOGIN
+                    ${!isRegistering ? "LOGIN" : "REGISTER"}
                 </h1>
 
                 <div className="w-full space-y-6 mb-8">

@@ -3,19 +3,18 @@ const { useState, useEffect, useRef } = React;
 
 export default function Pong({ ws, myUsername, opponent, onClose, incomingMove, isHost }) {
     const canvasRef = useRef(null);
+    
+    // GAME STATE
+    // Paddle 1 = Left (Host)
+    // Paddle 2 = Right (Guest)
     const gameState = useRef({
         ball: { x: 300, y: 200, dx: 4, dy: 4 },
-        paddle1: { y: 150, h: 60, w: 15 },
-        paddle2: { y: 150, h: 60, w: 15 },
+        paddle1Y: 150, 
+        paddle2Y: 150, 
         score: { host: 0, guest: 0 },
         running: true
     });
 
-    // ... (Keep existing Game Loop and Update Logic same as before) ...
-    // Just copy the useEffect from the previous working Pong.js
-    // I am omitting the physics code block here for brevity, assume it is same as previous answer.
-    
-    // RE-INSERT PHYSICS LOGIC FROM PREVIOUS ANSWER HERE inside useEffect
     useEffect(() => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
@@ -30,28 +29,51 @@ export default function Pong({ ws, myUsername, opponent, onClose, incomingMove, 
 
         const update = () => {
             const state = gameState.current;
+            
+            // --- PHYSICS (HOST ONLY) ---
             if (isHost) {
                 state.ball.x += state.ball.dx; 
                 state.ball.y += state.ball.dy;
-                if (state.ball.y + 5 > 400 || state.ball.y - 5 < 0) state.ball.dy *= -1;
-                
-                if (state.ball.x - 5 < 25 && state.ball.y > state.paddle1.y && state.ball.y < state.paddle1.y + state.paddle1.h) state.ball.dx = Math.abs(state.ball.dx) * 1.05;
-                if (state.ball.x + 5 > 575 && state.ball.y > state.paddle2.y && state.ball.y < state.paddle2.y + state.paddle2.h) state.ball.dx = -Math.abs(state.ball.dx) * 1.05;
 
-                if (state.ball.x < 0) {
-                    state.score.guest += 1; resetBall(state); broadcast(state);
-                } else if (state.ball.x > 600) {
-                    state.score.host += 1; resetBall(state); broadcast(state);
+                // 1. Wall Bounces (Top/Bottom)
+                if (state.ball.y <= 0 || state.ball.y >= 400) state.ball.dy *= -1;
+                
+                // 2. Paddle Collisions
+                // Host Paddle (Left, x=10)
+                if (state.ball.x <= 25 && state.ball.y >= state.paddle1Y && state.ball.y <= state.paddle1Y + 60) {
+                    state.ball.dx = Math.abs(state.ball.dx) * 1.05; // Bounce Right
+                }
+                // Guest Paddle (Right, x=575)
+                if (state.ball.x >= 575 && state.ball.y >= state.paddle2Y && state.ball.y <= state.paddle2Y + 60) {
+                    state.ball.dx = -Math.abs(state.ball.dx) * 1.05; // Bounce Left
                 }
 
+                // 3. Scoring
+                if (state.ball.x < 0) {
+                    state.score.guest += 1; 
+                    resetBall(state); 
+                    broadcast(state, "score");
+                } else if (state.ball.x > 600) {
+                    state.score.host += 1; 
+                    resetBall(state); 
+                    broadcast(state, "score");
+                }
+
+                // 4. Sync Ball to Guest (Every frame is too much, but fine for LAN)
                 if (ws.current.readyState === WebSocket.OPEN) {
-                    ws.current.send(JSON.stringify({ type: "game_signal", gameType: "pong", action: "sync", to: opponent, ball: state.ball }));
+                    ws.current.send(JSON.stringify({ 
+                        type: "game_signal", gameType: "pong", action: "sync", to: opponent, 
+                        ball: state.ball 
+                    }));
                 }
             }
         };
 
-        const broadcast = (state) => {
-            ws.current.send(JSON.stringify({ type: "game_signal", gameType: "pong", action: "score", to: opponent, score: state.score }));
+        const broadcast = (state, action) => {
+            ws.current.send(JSON.stringify({ 
+                type: "game_signal", gameType: "pong", action: action, to: opponent, 
+                score: state.score 
+            }));
         };
 
         const draw = (ctx) => {
@@ -60,75 +82,88 @@ export default function Pong({ ws, myUsername, opponent, onClose, incomingMove, 
             const color = isDark ? '#ffffff' : '#000000';
             const bg = isDark ? '#000000' : '#ffffff';
 
-            ctx.fillStyle = bg; ctx.fillRect(0, 0, 600, 400);
+            // Clear
+            ctx.fillStyle = bg; 
+            ctx.fillRect(0, 0, 600, 400);
             
-            ctx.fillStyle = color; ctx.font = '60px "Press Start 2P", monospace';
-            ctx.textAlign = "center"; ctx.globalAlpha = 0.2; 
+            // Score
+            ctx.fillStyle = color; 
+            ctx.font = '60px "Press Start 2P", monospace';
+            ctx.textAlign = "center"; 
+            ctx.globalAlpha = 0.15; 
             ctx.fillText(state.score.host, 150, 80); 
             ctx.fillText(state.score.guest, 450, 80);
             ctx.globalAlpha = 1.0; 
 
+            // Net
             ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.setLineDash([10, 10]);
             ctx.beginPath(); ctx.moveTo(300, 0); ctx.lineTo(300, 400); ctx.stroke(); ctx.setLineDash([]);
             
-            ctx.fillRect(10, state.paddle1.y, 15, state.paddle1.h);
-            ctx.fillRect(575, state.paddle2.y, 15, state.paddle2.h);
-            ctx.fillRect(state.ball.x - 5, state.ball.y - 5, 10, 10);
+            // Paddles
+            ctx.fillRect(10, state.paddle1Y, 15, 60);  // Left (Host)
+            ctx.fillRect(575, state.paddle2Y, 15, 60); // Right (Guest)
+            
+            // Ball
+            ctx.fillRect(state.ball.x - 5, state.ball.y - 5, 10, 10); 
+            
+            // Labels
+            ctx.font = '10px "VT323", monospace';
+            ctx.fillText(isHost ? `${myUsername} (YOU)` : opponent, 30, 390);
+            ctx.fillText(isHost ? opponent : `${myUsername} (YOU)`, 570, 390);
         };
 
-        const resetBall = (state) => { state.ball = { x: 300, y: 200, dx: 4, dy: 4 }; };
+        const resetBall = (state) => { state.ball = { x: 300, y: 200, dx: 4 * (Math.random() > 0.5 ? 1 : -1), dy: 4 * (Math.random() > 0.5 ? 1 : -1) }; };
+        
         loop();
         return () => { gameState.current.running = false; cancelAnimationFrame(animationFrameId); };
-    }, [isHost]);
+    }, [isHost]); 
 
-    // --- INPUT HANDLING (MOUSE + TOUCH) ---
-    const processInput = (clientY, rect) => {
+    // --- INPUT HANDLING ---
+    const handleMouseMove = (e) => {
+        const rect = canvasRef.current.getBoundingClientRect();
         const scaleY = 400 / rect.height;
-        const y = Math.max(0, Math.min(340, (clientY - rect.top) * scaleY - 30));
+        const relativeY = (e.clientY - rect.top) * scaleY;
+        const y = Math.max(0, Math.min(340, relativeY - 30));
         
-        if (isHost) gameState.current.paddle1.y = y;
-        else gameState.current.paddle2.y = y;
+        // Update LOCAL State
+        if (isHost) gameState.current.paddle1Y = y; // I am Left
+        else gameState.current.paddle2Y = y;        // I am Right
 
+        // Broadcast Move
         if (ws.current.readyState === WebSocket.OPEN) {
-            ws.current.send(JSON.stringify({ type: "game_signal", gameType: "pong", action: "move", to: opponent, y: y, isHost: isHost }));
+            ws.current.send(JSON.stringify({ 
+                type: "game_signal", gameType: "pong", action: "move", to: opponent, 
+                y: y, isHost: isHost 
+            }));
         }
     };
 
-    const handleMouseMove = (e) => {
-        processInput(e.clientY, canvasRef.current.getBoundingClientRect());
-    };
-
-    const handleTouchMove = (e) => {
-        e.preventDefault(); // Prevent scrolling
-        processInput(e.touches[0].clientY, canvasRef.current.getBoundingClientRect());
-    };
-
+    // --- NETWORK SYNC ---
     useEffect(() => {
         if (!incomingMove) return;
         const data = incomingMove;
+        
         if (data.action === "move") {
-            if (data.isHost) gameState.current.paddle1.y = data.y;
-            else gameState.current.paddle2.y = data.y;
+            // Update REMOTE State
+            if (data.isHost) gameState.current.paddle1Y = data.y; // Host moved Left Paddle
+            else gameState.current.paddle2Y = data.y;             // Guest moved Right Paddle
         }
-        else if (data.action === "sync" && !isHost) gameState.current.ball = data.ball;
-        else if (data.action === "score") gameState.current.score = data.score;
+        else if (data.action === "sync" && !isHost) {
+            gameState.current.ball = data.ball;
+        }
+        else if (data.action === "score") {
+            gameState.current.score = data.score;
+        }
     }, [incomingMove]);
 
     return html`
-        <div className="absolute inset-0 z-50 flex items-center justify-center" style=${{ backgroundColor: "rgba(0,0,0,0.9)" }}>
-            <div className="pixel-box p-2 flex flex-col items-center w-full max-w-2xl mx-2">
-                
-                <!-- SCALABLE CANVAS -->
-                <canvas ref=${canvasRef} width="600" height="400" 
-                    onMouseMove=${handleMouseMove}
-                    onTouchMove=${handleTouchMove}
-                    className="border-4 cursor-none mb-4 w-full h-auto" 
-                    style=${{ borderColor: "var(--main-text)", touchAction: "none" }}></canvas>
-
-                <button onClick=${onClose} className="btn-pixel w-full text-xs py-4">EXIT GAME</button>
-                
-                <div class="mt-2 text-[10px] font-mono text-center" style=${{color: "var(--shadow-color)"}}>
-                    DRAG TO MOVE PADDLE
+        <div className="absolute inset-0 z-50 flex items-center justify-center" style=${{ backgroundColor: "rgba(0,0,0,0.85)" }}>
+            <div className="pixel-box p-4 flex flex-col items-center w-full max-w-2xl mx-2">
+                <canvas ref=${canvasRef} width="600" height="400" onMouseMove=${handleMouseMove}
+                    className="border-4 cursor-none mb-4 w-full h-auto" style=${{ borderColor: "var(--main-text)", touchAction: "none" }}></canvas>
+                <button onClick=${onClose} className="btn-pixel w-full text-xs">ABORT MATCH</button>
+                <div class="mt-2 text-xs font-mono text-center" style=${{color: "var(--shadow-color)"}}>
+                    MOVE MOUSE TO CONTROL PADDLE
                 </div>
             </div>
         </div>

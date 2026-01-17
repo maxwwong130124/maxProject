@@ -1,6 +1,12 @@
-
 function ab2str(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
-function str2ab(str) { return Uint8Array.from(atob(str), c => c.charCodeAt(0)); }
+function str2ab(str) {
+    try {
+        return Uint8Array.from(atob(str), c => c.charCodeAt(0));
+    } catch (e) {
+        console.error("Base64 Decoding failed:", e);
+        return new Uint8Array(); // Return empty array instead of crashing
+    }
+}
 
 export async function generateKeyPair() {
     return await window.crypto.subtle.generateKey(
@@ -47,44 +53,43 @@ export async function encryptMessage(text, receiverPublicKeyPem) {
     };
 }
 
-export async function decryptMessage(data, privateKey) {
+export async function decryptMessage(data, privateKey, config = {}) {
     try {
         const rawAesKey = await window.crypto.subtle.decrypt({ name: "RSA-OAEP" }, privateKey, str2ab(data.encryptedAesKey));
-        const hmacKey = await window.crypto.subtle.importKey("raw", rawAesKey, { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
-        const ciphertext = str2ab(data.ciphertext);
-        const signature = str2ab(data.signature);
-        
-        if (!await window.crypto.subtle.verify("HMAC", hmacKey, signature, ciphertext)) throw new Error("Integrity Check Failed");
-        
         const aesKey = await window.crypto.subtle.importKey("raw", rawAesKey, { name: "AES-CBC" }, false, ["decrypt"]);
         const iv = str2ab(data.iv);
-        const decryptedBytes = await window.crypto.subtle.decrypt({ name: "AES-CBC", iv: iv }, aesKey, ciphertext);
+        const decryptedBytes = await window.crypto.subtle.decrypt({ name: "AES-CBC", iv: iv }, aesKey, str2ab(data.ciphertext));
         
         const payload = JSON.parse(new TextDecoder().decode(decryptedBytes));
-        if (Math.abs(Date.now() - payload.timestamp) > 60000) throw new Error("Replay Detected");
         
+        
+        if (!config.replayProtection) {
+            const now = Date.now();
+            const diff = Math.abs(now - payload.timestamp);
+
+            if (diff > 60000) { 
+                console.error("REPLAY DETECTED!");
+                return "⚠️ SECURITY ALERT: REPLAY ATTACK DETECTED (Freshness Check Failed)";
+            }
+        }
+
         return payload.content;
     } catch (e) {
-        console.error(e);
+        console.error("Decryption system error:", e);
         return "[Decryption Failed]";
     }
 }
-
 // Convert Private Key Object -> JSON String (for LocalStorage)
 export async function exportPrivateKeyToStorage(key) {
-    const exported = await window.crypto.subtle.exportKey("jwk", key);
-    return JSON.stringify(exported);
+    const exported = await window.crypto.subtle.exportKey("pkcs8", key);
+    return btoa(String.fromCharCode(...new Uint8Array(exported)));
 }
 
-// Convert JSON String -> Private Key Object (for App State)
-export async function importPrivateKeyFromStorage(jsonString) {
-    const jwk = JSON.parse(jsonString);
+export async function importPrivateKeyFromStorage(pem) {
+    const binaryDerString = atob(pem);
+    const binaryDer = new Uint8Array([...binaryDerString].map(char => char.charCodeAt(0)));
     return await window.crypto.subtle.importKey(
-        "jwk",
-        jwk,
-        { name: "RSA-OAEP", hash: "SHA-256" },
-        true,
-        ["decrypt"]
+        "pkcs8", binaryDer, { name: "RSA-OAEP", hash: "SHA-256" }, true, ["decrypt"]
     );
 }
 
